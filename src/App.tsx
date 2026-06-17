@@ -27,18 +27,30 @@ import {
   Volume2,
   VolumeX,
   History,
-  Sliders
+  Sliders,
+  Calendar,
+  Heart,
+  Lightbulb,
+  Sun,
+  Activity,
+  ArrowRight,
+  TrendingUp,
+  Smile,
+  ShieldCheck,
+  RefreshCw
 } from "lucide-react";
 import { ScheduleItem, TodoItem, OptimizationResponse } from "./types";
 
 const defaultSchedules: ScheduleItem[] = [
-  { id: "1", title: "Kuliah Reguler: Jaringan Komputer", start: "08:00", end: "10:30", category: "akademik", reminderMinutes: 15, reminderFired: false },
+  { id: "1", title: "Kuliah Reguler: Jaringan Jaringan Komputer", start: "08:00", end: "10:30", category: "akademik", reminderMinutes: 15, reminderFired: false },
   { id: "2", title: "Sesi Magang Profesional (MSIB)", start: "13:00", end: "17:00", category: "eksternal", reminderMinutes: 30, reminderFired: false },
+  { id: "3", title: "Diskusi Kelompok & Hangout Santai", start: "19:00", end: "20:30", category: "sosial", reminderMinutes: 15, reminderFired: false },
 ];
 
 const defaultTodos: TodoItem[] = [
   { id: "todo-1", task: "Selesaikan lembar analisis kegiatan harian", completed: false },
   { id: "todo-2", task: "Matikan layar gadget 30 menit sebelum slot tidur esensial", completed: false },
+  { id: "todo-3", task: "Minum air putih hangat setelah bangun tidur sirkadian", completed: true },
 ];
 
 export default function App() {
@@ -62,13 +74,12 @@ export default function App() {
 
   // AI & Circadian state
   const [energyScore, setEnergyScore] = useState(85);
-  const [sleepDurationHours, setSleepDurationHours] = useState(7);
+  const [sleepDurationHours, setSleepDurationHours] = useState(7.5);
   const [conflictText, setConflictText] = useState<string | null>(null);
   const [coachingTip, setCoachingTip] = useState(
-    "Menjaga konsistensi sirkadian menstabilkan pelepasan kortisol harian dan mengoptimalkan fungsi kognitif Anda."
+    "Menjaga konsistensi sirkadian menstabilkan pelepasan kortisol harian dan mengoptimalkan fungsi kognitif Anda secara biologis."
   );
   const [isLoaderActive, setIsLoaderActive] = useState(false);
-  const [isAiConfigured, setIsAiConfigured] = useState(true);
 
   // Time ticker state
   const [currentTimeStr, setCurrentTimeStr] = useState("");
@@ -83,6 +94,9 @@ export default function App() {
     const saved = localStorage.getItem("snooze_notification_logs");
     return saved ? JSON.parse(saved) : [];
   });
+
+  // Selected schedule template index for beautiful visualization highlight
+  const [activeTemplate, setActiveTemplate] = useState<string>("default");
 
   // Sync time on mount
   useEffect(() => {
@@ -100,28 +114,29 @@ export default function App() {
     localStorage.setItem("snooze_notification_logs", JSON.stringify(notificationLogs));
   }, [notificationLogs]);
 
-  // Audio synthesis helper for beautiful notification warning chime
+  // Audio synthesis helper for beautiful notification warning chime (Major chord on Sky Blue + Green energy)
   const playAlertSound = () => {
     if (!soundEnabled) return;
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 melodic cue
+      // Light cheerful major arpeggio
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5 - E5 - G5 - C6
       notes.forEach((freq, index) => {
         const osc = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
         osc.connect(gainNode);
         gainNode.connect(audioCtx.destination);
         
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + index * 0.15);
-        gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime + index * 0.15);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + index * 0.15 + 0.45);
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + index * 0.1);
+        gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime + index * 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + index * 0.1 + 0.35);
         
         osc.type = "sine";
-        osc.start(audioCtx.currentTime + index * 0.15);
-        osc.stop(audioCtx.currentTime + index * 0.15 + 0.5);
+        osc.start(audioCtx.currentTime + index * 0.1);
+        osc.stop(audioCtx.currentTime + index * 0.1 + 0.4);
       });
     } catch (e) {
-      console.warn("Blocked AudioContext. User gesture is required first.", e);
+      console.warn("AudioContext need user gesture interaction context first.", e);
     }
   };
 
@@ -146,7 +161,6 @@ export default function App() {
       let didChange = false;
 
       schedules.forEach((item, index) => {
-        // Skip biologis & events with no reminder configured (-1)
         if (item.category === "biologis" || item.reminderMinutes === undefined || item.reminderMinutes === -1) {
           return;
         }
@@ -177,7 +191,7 @@ export default function App() {
             : new Date().toLocaleTimeString("id", { hour: "2-digit", minute: "2-digit" });
 
           const labelTxt = item.reminderMinutes === 0 ? "Tepat Waktu" : `${item.reminderMinutes} mnt sebelum`;
-          const logMsg = `[Alarm ${labelTxt}] Acara "${item.title}" akan dimulai pukul ${item.start}!`;
+          const logMsg = `[Alarm Berbunyi] "${item.title}" akan dimulai pukul ${item.start}!`;
 
           setNotificationLogs(prev => [
             {
@@ -196,7 +210,6 @@ export default function App() {
       }
     };
 
-    // Scan initially and every 3 seconds for exact match responsive feedback
     const interval = setInterval(checkReminders, 3000);
     checkReminders();
     return () => clearInterval(interval);
@@ -233,14 +246,13 @@ export default function App() {
       }
     } catch (err) {
       console.error("Gagal melakukan optimasi terpusat. Menggunakan fallback lokal.", err);
-      // Fallback local rule-based simulation in case of connection exceptions
       computeLocalRuleFallback(currentSchedules, action);
     } finally {
       setIsLoaderActive(false);
     }
   };
 
-  // Safe client calculation to display immediate responsive items before API returns
+  // Fallback local rule-based simulation
   const computeLocalRuleFallback = (currentSchedules: ScheduleItem[], action: "analyze" | "resolve") => {
     let updatedSchedules = [...currentSchedules];
     let conflict: string | null = null;
@@ -262,7 +274,7 @@ export default function App() {
               ...item,
               start: "19:00",
               end: "20:30",
-              title: `${item.title} (Digeser AI ke Jam Aman)`
+              title: `${item.title} (AI Relocated)`
             };
           }
           return item;
@@ -277,7 +289,7 @@ export default function App() {
         const a = updatedSchedules[i];
         const b = updatedSchedules[j];
         if (a.start === b.start && a.id !== b.id) {
-          conflict = `Terdeteksi tabrakan waktu jam ${a.start} antara "${a.title}" dan "${b.title}".`;
+          conflict = `Terdeteksi benturan agenda pada pukul ${a.start} antara "${a.title}" dan "${b.title}".`;
           if (action === "resolve") {
             const [h, m] = b.start.split(":").map(Number);
             const newH = String((h + 2) % 24).padStart(2, "0");
@@ -315,21 +327,49 @@ export default function App() {
     setSleepDurationHours(Math.max(5, 8 - (sleepInvader * 1.5)));
     setConflictText(conflict);
 
-    // Update simple todo checklist
     if (action === "resolve") {
       setTodos([
-        { id: "todo-1", task: "Persiapan materi rapat sirkadian selesai", completed: true },
-        { id: "todo-2", task: "Catatan tugas magang terstruktur", completed: false }
+        { id: "todo-1", task: "Selesaikan lembar analisis kegiatan harian", completed: true },
+        { id: "todo-2", task: "Matikan layar gadget 30 menit sebelum slot tidur esensial", completed: false },
+        { id: "todo-3", task: "Pastikan slot sosial sore digeser ke jam santai malam", completed: true }
       ]);
     }
   };
 
-  // Run initial diagnostics on mount
   useEffect(() => {
     triggerServiceOptimization(schedules, "analyze");
   }, []);
 
-  // Handler to add a schedule manual
+  // Preset Template loader to make the mockup incredibly varied & useful!
+  const loadPresetTemplate = (type: "default" | "msib" | "healthy") => {
+    setActiveTemplate(type);
+    let targetSchedules: ScheduleItem[] = [];
+    if (type === "default") {
+      targetSchedules = [
+        { id: "1", title: "Kuliah Reguler: Jaringan Komputer", start: "08:00", end: "10:30", category: "akademik", reminderMinutes: 15, reminderFired: false },
+        { id: "2", title: "Sesi Magang Profesional (MSIB)", start: "13:00", end: "17:00", category: "eksternal", reminderMinutes: 30, reminderFired: false },
+        { id: "3", title: "Diskusi Kelompok & Hangout Santai", start: "19:00", end: "20:30", category: "sosial", reminderMinutes: 15, reminderFired: false },
+      ];
+    } else if (type === "msib") {
+      targetSchedules = [
+        { id: "m-1", title: "Daily Scrum Meeting Magang", start: "09:00", end: "10:00", category: "eksternal", reminderMinutes: 5, reminderFired: false },
+        { id: "m-2", title: "Bimbingan Mentor MSIB", start: "13:30", end: "15:00", category: "eksternal", reminderMinutes: 15, reminderFired: false },
+        { id: "m-3", title: "Kuis Online Sinyal Sistem", start: "15:00", end: "16:30", category: "akademik", reminderMinutes: 15, reminderFired: false }, // Bentrok sengaja
+        { id: "m-4", title: "Futsal / Jogging Bersama MSIB", start: "19:00", end: "20:45", category: "sosial", reminderMinutes: 15, reminderFired: false },
+      ];
+    } else if (type === "healthy") {
+      targetSchedules = [
+        { id: "h-1", title: "Review Kuliah Mandiri Pagi", start: "08:00", end: "09:30", category: "akademik", reminderMinutes: 0, reminderFired: false },
+        { id: "h-2", title: "Pengerjaan Tugas Akhir", start: "10:00", end: "12:00", category: "akademik", reminderMinutes: 15, reminderFired: false },
+        { id: "h-3", title: "Kelas Sharing Dunia Industri", start: "15:30", end: "17:00", category: "eksternal", reminderMinutes: 30, reminderFired: false },
+        { id: "h-4", title: "Quality Time Keluarga", start: "18:30", end: "20:00", category: "sosial", reminderMinutes: 10, reminderFired: false },
+      ];
+    }
+    setSchedules(targetSchedules);
+    triggerServiceOptimization(targetSchedules, "analyze");
+  };
+
+  // Handler to add schedule manually
   const handleAddSchedule = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) {
@@ -348,7 +388,7 @@ export default function App() {
       end: formEnd,
       category: formCategory,
       reminderMinutes: formReminderMinutes,
-      reminderFired: false,
+      reminderFired: false
     };
 
     const nextSchedules = [...schedules, newItem];
@@ -377,7 +417,7 @@ export default function App() {
     setEnergyScore(100);
     setSleepDurationHours(8.0);
     setTodos([]);
-    setCoachingTip("Seluruh agenda kosong. Ritme biologi Anda berada pada mode istirahat penuh.");
+    setCoachingTip("Seluruh agenda kosong. Ritme biologi Anda berada pada mode istirahat penuh dan segar.");
   };
 
   // Resolve conflict using AI Optimization
@@ -402,115 +442,188 @@ export default function App() {
     setTodos(prev => [...prev, newTodo]);
   };
 
-  // Map category code to beautiful tailwind styling properties
+  // Bright & Fresh Clean category configuration map
   const categoryConfigMap = {
     akademik: {
-      bg: "bg-blue-600/10",
-      border: "border-blue-500",
-      text: "text-blue-400",
+      bg: "bg-sky-50/70 hover:bg-sky-100/80 hover:shadow-sky-100/40",
+      border: "border-sky-400",
+      pillBg: "bg-sky-100/80 text-sky-700 font-bold border border-sky-200/50",
+      text: "text-slate-800",
       label: "Akademik",
-      icon: <BookOpen className="w-3.5 h-3.5" />
+      icon: <BookOpen className="w-3.5 h-3.5 text-sky-500" />
     },
     eksternal: {
-      bg: "bg-purple-600/10",
-      border: "border-purple-500",
-      text: "text-purple-400",
-      label: "Eksternal Pro",
-      icon: <Briefcase className="w-3.5 h-3.5" />
+      bg: "bg-teal-50/70 hover:bg-teal-100/80 hover:shadow-teal-100/40",
+      border: "border-emerald-400",
+      pillBg: "bg-emerald-100/80 text-emerald-700 font-bold border border-emerald-200/50",
+      text: "text-slate-800",
+      label: "MSIB / Eksternal",
+      icon: <Briefcase className="w-3.5 h-3.5 text-emerald-500" />
     },
     sosial: {
-      bg: "bg-orange-600/10",
-      border: "border-orange-500",
-      text: "text-orange-400",
-      label: "Sosial",
-      icon: <Users className="w-3.5 h-3.5" />
+      bg: "bg-yellow-50/50 hover:bg-yellow-100/60 hover:shadow-yellow-100/20",
+      border: "border-amber-450",
+      pillBg: "bg-amber-100/80 text-amber-800 font-bold border border-amber-200/40",
+      text: "text-slate-800",
+      label: "Sosial & Jam Rileks",
+      icon: <Users className="w-3.5 h-3.5 text-amber-500" />
     },
     biologis: {
-      bg: "bg-emerald-600/5",
-      border: "border-emerald-500/40",
-      text: "text-emerald-400",
-      label: "Jam Tidur AI",
-      icon: <Moon className="w-3.5 h-3.5 animate-pulse" />
+      bg: "bg-emerald-50/35",
+      border: "border-emerald-300",
+      pillBg: "bg-emerald-100/80 text-emerald-800 font-bold border border-emerald-200/50",
+      text: "text-slate-800",
+      label: "Tidur Sirkadian",
+      icon: <Moon className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
     }
   };
 
-  // Math for Circular protected score
-  const radius = 32;
+  // Math for Circular gauge progress
+  const radius = 34;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (energyScore / 100) * circumference;
 
   return (
-    <div className="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none overflow-x-hidden antialiased selection:bg-indigo-600 selection:text-white" id="snoozeplan-app-root">
+    <div className="bg-gradient-to-tr from-sky-50/50 via-white to-emerald-50/30 text-slate-800 min-h-screen flex flex-col font-sans select-none overflow-x-hidden antialiased selection:bg-sky-200 selection:text-sky-900" id="snoozeplan-app-root">
       
-      {/* 🚀 Dynamic Status Top Banner */}
-      <header className="bg-slate-950 border-b border-slate-900 text-slate-400 text-xs py-2.5 px-6 flex justify-between items-center font-mono">
+      {/* 🚀 Sleek Header Banner (Bright & Fresh Tech - Sky Blue & Leaves Green) */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-sky-100/80 text-slate-600 text-xs py-3 px-6 flex justify-between items-center font-sans shadow-xs relative sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <span className="text-indigo-400 font-bold tracking-wider flex items-center gap-1">
-            <Zap className="w-3.5 h-3.5 text-indigo-500 animate-pulse" /> SNOOZEPLAN AI PRO
-          </span>
-          <span className="text-slate-700">|</span>
-          <span className="text-[10px] bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 px-2 py-0.5 rounded-full font-mono">
-            PRODUCTION READY v1.2
+          <div className="flex items-center gap-1.5">
+            <div className="bg-gradient-to-r from-sky-500 to-emerald-400 p-2 rounded-xl text-white shadow-sm shadow-sky-400/20">
+              <Zap className="w-4 h-4 animate-pulse text-white" />
+            </div>
+            <span className="text-slate-900 font-title font-extrabold tracking-tight text-sm sm:text-base">
+              SnoozePlan<span className="text-gradient bg-gradient-to-r from-sky-500 to-emerald-500 bg-clip-text text-transparent font-black ml-1">AI Pro</span>
+            </span>
+          </div>
+          <span className="text-slate-200">|</span>
+          <span className="hidden sm:inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-100/60 shadow-3xs">
+            Bright & Fresh Tech 🍀
           </span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-[10px] text-slate-500 flex items-center gap-1.5 font-mono">
-            <Clock className="w-3 h-3 text-indigo-400" /> {currentTimeStr || "Loading..."} WITA
+        
+        <div className="flex items-center gap-3">
+          <div className="text-[11px] text-slate-700 font-bold flex items-center gap-1.5 bg-gradient-to-r from-sky-50 to-emerald-50/50 px-3 py-1.5 rounded-xl border border-sky-100/40 font-mono">
+            <Clock className="w-3.5 h-3.5 text-sky-500 animate-spin-slow" /> {currentTimeStr || "Mengambil Waktu..."}
           </div>
-          <span className="text-emerald-400 flex items-center gap-1.5 text-[10px] md:text-xs">
+          
+          <span className="hidden md:inline-flex text-emerald-700 bg-emerald-100/60 border border-emerald-200/50 rounded-xl px-2.5 py-1.5 items-center gap-1.5 text-[10px] font-extrabold">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            LocalStorage Terintegrasi
+            Sirkadian Terlindungi
           </span>
         </div>
       </header>
 
-      {/* 🔮 Primary Flex Column Structure */}
-      <div className="flex flex-1 flex-col lg:flex-row h-auto lg:h-[calc(100vh-37px)] overflow-hidden">
+      {/* 🔮 Primary Clean Light Mode Interface Structure */}
+      <div className="flex flex-1 flex-col lg:flex-row h-auto lg:h-[calc(100vh-53px)] overflow-hidden">
         
-        {/* 📋 Column 1: Sidebar Biosphere Indicator */}
-        <aside className="w-full lg:w-[22%] bg-slate-900/30 p-6 flex flex-col justify-between border-r border-slate-900">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3.5">
-              <div className="bg-gradient-to-tr from-indigo-700 to-violet-600 p-2.5 rounded-2xl text-white shadow-lg shadow-indigo-950/50 flex justify-center items-center">
-                <Moon className="w-5 h-5 text-indigo-100" />
+        {/* 📋 Column 1: Biosphere Indicator Sidebar (Light, Clean Leaf Theme) */}
+        <aside className="w-full lg:w-[26%] bg-white/70 p-5 flex flex-col justify-between border-r border-sky-100/50 overflow-y-auto space-y-5">
+          <div className="space-y-4">
+            
+            {/* Title Badge widget info */}
+            <div className="flex items-center gap-3 bg-gradient-to-br from-sky-500/10 via-emerald-400/5 to-transparent p-3.5 rounded-2xl border border-sky-100/20">
+              <div className="bg-gradient-to-br from-sky-400 to-emerald-400 p-2.5 rounded-xl text-white shadow-sm shadow-sky-400/30 flex justify-center items-center">
+                <Activity className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="font-title font-bold text-lg tracking-tight text-slate-100 leading-none">SnoozePlan</h1>
-                <span className="text-[9px] text-indigo-400 font-mono tracking-widest uppercase">Circadian Optimizer</span>
+                <h1 className="font-title font-bold text-sm tracking-tight text-slate-950 leading-tight">Biologi Sirkadian</h1>
+                <span className="text-[9px] text-emerald-600 font-extrabold uppercase tracking-wider block">Kesehatan & Energi Instan</span>
               </div>
             </div>
 
-            {/* Circadian Score Ring Card */}
-            <div className="bg-slate-900/60 border border-slate-900 rounded-2xl p-5 space-y-4 shadow-xl">
+            {/* Template Presets Container: Makes visual extremely active & allows fast seeding! */}
+            <div className="bg-gradient-to-br from-sky-50/40 via-emerald-50/10 to-white border border-sky-150/50 rounded-2xl p-4.5 space-y-3 shadow-xs">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Proteksi Sirkadian</span>
-                {isLoaderActive && (
-                  <span className="text-[10px] text-indigo-400 animate-pulse font-mono flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span> AI Menganalisis...
+                <span className="text-[10px] font-bold text-sky-700 uppercase tracking-widest font-mono flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-sky-500 animate-pulse" /> Pilih Rute Sirkadian
+                </span>
+                <span className="text-[9px] text-slate-400">klik untuk memuat</span>
+              </div>
+              <p className="text-[10px] text-slate-500">Sesuaikan simulasi harian langsung dengan pola studi ideal Anda:</p>
+              
+              <div className="grid grid-cols-1 gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => loadPresetTemplate("default")}
+                  className={`text-left text-[11px] p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
+                    activeTemplate === "default"
+                      ? "bg-sky-500 text-white border-transparent shadow-sm font-semibold"
+                      : "bg-white/90 text-slate-700 border-slate-100 hover:border-sky-300 hover:bg-sky-50/30"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    🎓 <span className="truncate">Kuliah Reguler & Hangout</span>
                   </span>
+                  <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${activeTemplate === "default" ? "text-white" : "text-transparent"}`} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => loadPresetTemplate("msib")}
+                  className={`text-left text-[11px] p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
+                    activeTemplate === "msib"
+                      ? "bg-emerald-500 text-white border-transparent shadow-sm font-semibold"
+                      : "bg-white/90 text-slate-700 border-slate-100 hover:border-emerald-300 hover:bg-emerald-50/30"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    💼 <span className="truncate">Mahasiswa Magang MSIB (Sibuk)</span>
+                  </span>
+                  <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${activeTemplate === "msib" ? "text-white" : "text-transparent"}`} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => loadPresetTemplate("healthy")}
+                  className={`text-left text-[11px] p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
+                    activeTemplate === "healthy"
+                      ? "bg-amber-500 text-white border-transparent shadow-sm font-semibold"
+                      : "bg-white/90 text-slate-700 border-slate-100 hover:border-amber-300 hover:bg-amber-50/30"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    🧘‍♀️ <span className="truncate">Fit & Sehat Seimbang</span>
+                  </span>
+                  <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${activeTemplate === "healthy" ? "text-white" : "text-transparent"}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Circular Circadian Status ring widget */}
+            <div className="bg-white border border-slate-100/80 rounded-2xl p-4.5 space-y-4 shadow-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">Bioritme Energi</span>
+                {isLoaderActive ? (
+                  <span className="text-[10px] text-sky-500 animate-pulse font-mono flex items-center gap-1 font-bold">
+                    <RefreshCw className="w-3 h-3 animate-spin text-sky-500" /> Sinkron AI...
+                  </span>
+                ) : (
+                  <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Stabil</span>
                 )}
               </div>
+              
               <div className="flex items-center gap-4">
-                <div className="relative flex items-center justify-center">
-                  {/* SVG Circle Progress */}
-                  <svg className="w-16 h-16 transform -rotate-90">
+                <div className="relative flex items-center justify-center bg-sky-50/30 p-1 rounded-full">
+                  <svg className="w-18 h-18 transform -rotate-90">
                     <circle
-                      cx="32"
-                      cy="32"
+                      cx="36"
+                      cy="36"
                       r={radius}
-                      className="stroke-slate-950"
+                      className="stroke-slate-100"
                       strokeWidth="5"
                       fill="transparent"
                     />
                     <motion.circle
-                      cx="32"
-                      cy="32"
+                      cx="36"
+                      cy="36"
                       r={radius}
-                      className="stroke-indigo-500"
-                      strokeWidth="5.5"
+                      className="stroke-sky-400"
+                      strokeWidth="5"
                       fill="transparent"
                       strokeDasharray={circumference}
                       initial={{ strokeDashoffset: circumference }}
@@ -519,81 +632,103 @@ export default function App() {
                       strokeLinecap="round"
                     />
                   </svg>
-                  <span className="absolute text-xs font-mono font-bold text-slate-100">{energyScore}%</span>
+                  <div className="absolute flex flex-col justify-center items-center">
+                    <span className="text-xs font-mono font-black text-slate-900">{energyScore}%</span>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-200">Skor Energi Sirkadian</p>
-                  <p className="text-[10px] text-slate-400 mt-1">Estimasi Tidur: <strong className="text-indigo-400">{sleepDurationHours.toFixed(1)} Jam</strong></p>
-                  <p className="text-[9px] text-slate-500">Min. Tidur Sehat: 6.5 Jam</p>
+
+                <div className="space-y-0.5">
+                  <h3 className="text-xs font-bold text-slate-900">Baterai Sel Sirkadian</h3>
+                  <div className="text-[10px] text-slate-600">
+                    Sisa Tidur: <strong className="text-emerald-600">{sleepDurationHours.toFixed(1)} Jam</strong>
+                  </div>
+                  <div className="text-[9px] text-slate-400 flex items-center gap-1">
+                    <TrendingUp className="w-2.5 h-2.5 text-emerald-500" /> Ritme Sehat Standard
+                  </div>
                 </div>
               </div>
 
-              {/* Dynamic Health Warning */}
-              <div className="pt-2 border-t border-slate-950/60">
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  Status: {energyScore >= 80 ? (
-                    <span className="text-emerald-400 font-bold">Sangat Ideal ✨</span>
+              {/* Dynamic Health Indicator Bar in Sidebar */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] text-slate-500">Evaluasi Tubuh:</span>
+                <div>
+                  {energyScore >= 80 ? (
+                    <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-0.5 rounded-xl border border-emerald-200/50">Sangat Sehat ✨</span>
                   ) : energyScore >= 60 ? (
-                    <span className="text-amber-400 font-bold">Butuh Penyesuaian ⚠️</span>
+                    <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-2.5 py-0.5 rounded-xl border border-amber-200/50">Kurang Optimal ⚠️</span>
                   ) : (
-                    <span className="text-rose-400 font-bold">Sirkadian Terganggu 🚨</span>
+                    <span className="text-[10px] bg-rose-50 text-rose-700 font-bold px-2.5 py-0.5 rounded-xl border border-rose-200/40 animate-pulse">Kelelahan Ekstrim 🚨</span>
                   )}
-                </p>
+                </div>
               </div>
             </div>
 
-            {/* AI Advisor Coaching Tip panel */}
-            <div className="bg-slate-900/40 border border-slate-900 rounded-2xl p-4 space-y-2">
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block font-mono">Conseil sirkadian AI</span>
-              <p className="text-xs text-slate-300 leading-relaxed italic">
+            {/* AI Advisor Coaching Tip Panel in Sidebar */}
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/60 rounded-2xl p-4 space-y-2 relative overflow-hidden shadow-3xs">
+              <div className="absolute top-0 right-0 p-1.5 text-emerald-500/10">
+                <Lightbulb className="w-12 h-12 stroke-[1.5]" />
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest block font-mono flex items-center gap-1">
+                🍀 REKOMENDASI PINTAR KESEHATAN
+              </span>
+              <p className="text-xs text-slate-800 leading-relaxed italic relative z-10 font-medium">
                 &ldquo;{coachingTip}&rdquo;
               </p>
             </div>
 
-            {/* 🔔 Reminder testing & Audio configuration controller */}
-            <div className="bg-slate-900/60 border border-slate-900 rounded-2xl p-4 space-y-3 shadow-xl">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest font-mono flex items-center gap-1">
-                  <Sliders className="w-3.5 h-3.5 text-indigo-400" /> Alarm & Audio
+            {/* Alarm simulation system widget container */}
+            <div className="bg-white border border-slate-150/60 rounded-2xl p-4 space-y-3 shadow-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-sky-50">
+                <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4 text-sky-500" /> Uji Simulator Alarm
                 </span>
                 <button 
                   onClick={() => setSoundEnabled(!soundEnabled)}
-                  className={`p-1 rounded-lg border transition cursor-pointer ${
+                  className={`p-1.5 rounded-lg border transition-all duration-250 cursor-pointer ${
                     soundEnabled 
-                      ? "bg-indigo-950/50 text-indigo-400 border-indigo-900/50 hover:bg-indigo-950" 
-                      : "bg-slate-950 text-slate-600 border-slate-900 hover:bg-slate-900"
+                      ? "bg-sky-50 text-sky-600 border-sky-100 hover:bg-sky-100" 
+                      : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100"
                   }`}
-                  title={soundEnabled ? "Nonaktifkan Suara" : "Aktifkan Sound"}
+                  title={soundEnabled ? "Matikan Bunyi" : "Aktifkan Bunyi"}
                 >
                   {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
                 </button>
               </div>
 
-              {/* Simulation Toggles */}
-              <div className="space-y-1.5 bg-slate-950 p-3 rounded-xl border border-slate-900/60">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-semibold text-slate-450">Mode Simulasi Uji</span>
-                  <input 
-                    type="checkbox" 
-                    checked={isSimulationMode}
-                    onChange={(e) => setIsSimulationMode(e.target.checked)}
-                    className="rounded bg-slate-950 border-slate-850 text-indigo-600 focus:ring-0 cursor-pointer h-3.5 w-3.5 accent-indigo-500"
-                  />
+              <div className="space-y-2">
+                <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100/60">
+                  <span className="text-[10px] text-slate-700 font-semibold flex items-center gap-1">
+                    <Sun className="w-3 h-3 text-amber-500 animate-spin-slow" /> Mode Jam Simulasian
+                  </span>
+                  <div className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={isSimulationMode}
+                      onChange={(e) => setIsSimulationMode(e.target.checked)}
+                      className="sr-only peer"
+                      id="simulation-toggle"
+                    />
+                    <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-sky-500"></div>
+                  </div>
                 </div>
+
                 {isSimulationMode ? (
                   <motion.div 
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
-                    className="space-y-2 pt-1 border-t border-slate-900/80"
+                    className="space-y-2.5 pt-2 border-t border-slate-100"
                   >
-                    <label className="block text-[9px] text-slate-500 tracking-wider">Simulasi Jam:</label>
-                    <input 
-                      type="time" 
-                      value={simulationTime}
-                      onChange={(e) => setSimulationTime(e.target.value)}
-                      className="w-full text-xs font-mono bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-center focus:outline-none focus:border-indigo-600 font-bold"
-                    />
-                    <div className="flex gap-1.5 pt-0.5">
+                    <div className="text-[9px] text-slate-500 uppercase tracking-wider text-center font-bold">Tekan +/- 15m untuk lompati waktu</div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="time" 
+                        value={simulationTime}
+                        onChange={(e) => setSimulationTime(e.target.value)}
+                        className="w-full text-xs font-mono bg-sky-50 border border-sky-100 rounded-lg p-2 text-sky-950 text-center focus:outline-none focus:border-sky-500 font-bold shadow-xs"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-1.5 animate-fade-in">
                       <button 
                         type="button"
                         onClick={() => {
@@ -603,9 +738,9 @@ export default function App() {
                           const nm = String(total % 60).padStart(2, "0");
                           setSimulationTime(`${nh}:${nm}`);
                         }}
-                        className="flex-1 bg-slate-900 hover:bg-slate-800 text-[10px] text-slate-400 py-1.5 rounded-lg border border-slate-800/40 transition cursor-pointer text-center font-mono"
+                        className="bg-slate-50 hover:bg-slate-100 text-[10px] text-slate-600 py-2 rounded-lg border border-slate-200/60 transition cursor-pointer text-center font-mono font-semibold"
                       >
-                        -15m
+                        -15 Menit
                       </button>
                       <button 
                         type="button"
@@ -616,64 +751,92 @@ export default function App() {
                           const nm = String(total % 60).padStart(2, "0");
                           setSimulationTime(`${nh}:${nm}`);
                         }}
-                        className="flex-1 bg-slate-900 hover:bg-slate-800 text-[10px] text-slate-400 py-1.5 rounded-lg border border-slate-800/40 transition cursor-pointer text-center font-mono"
+                        className="bg-slate-50 hover:bg-slate-100 text-[10px] text-slate-600 py-2 rounded-lg border border-slate-200/60 transition cursor-pointer text-center font-mono font-semibold"
                       >
-                        +15m
+                        +15 Menit
                       </button>
                     </div>
+
                     <button
                       type="button"
                       onClick={() => {
-                        // Reset all fired statuses to let them test reminders again
                         setSchedules(prev => prev.map(item => ({ ...item, reminderFired: false })));
-                        alert("Status alarm dikosongkan. Siap uji ulang.");
+                        alert("Semua status pengingat alarm disetel ulang ke belum berdering!");
                       }}
-                      className="w-full bg-indigo-950/30 hover:bg-indigo-950/60 text-indigo-400 text-[9px] font-bold py-1.5 rounded-md border border-indigo-900/30 transition uppercase tracking-wider cursor-pointer"
+                      className="w-full bg-sky-50 hover:bg-sky-100 text-sky-700 text-[9px] font-extrabold py-2 rounded-lg border border-sky-100 transition uppercase tracking-wider cursor-pointer text-center block"
                     >
-                      Buka Kunci Alarm (Test Lagi)
+                      🔄 Reset Pembunyian Alarm
                     </button>
                   </motion.div>
                 ) : (
-                  <p className="text-[9px] text-slate-600 leading-normal">
-                    Menggunakan jam real-time. Centang uji di atas untuk simulasi cepat melompati jam.
+                  <p className="text-[10px] text-slate-400 leading-normal text-center bg-slate-50 p-2.5 rounded-xl">
+                    Mendeteksi alarm berdasarkan waktu lokal PC anda. Aktifkan simulasi di atas untuk pengujian cepat.
                   </p>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="text-[10px] text-slate-500 border-t border-slate-900 pt-4 mt-6 space-y-1">
-            <p className="font-semibold text-slate-400">Proteksi Biologis:</p>
-            <p>Jendela biologis 22.00 - 05.00 otomatis terlindungi dan terkunci untuk pemulihan optimal sistem seluler tubuh.</p>
+          <div className="text-[10px] text-slate-400 border-t border-slate-150 pt-3">
+            <span className="font-semibold text-slate-600 block mb-0.5">SNOOZEPLAN HEALTH:</span>
+            Pilar asisten kesehatan dirancang khusus menggunakan rekayasa bioritem sirkadian agar mahasiswa MSIB aktif berenergi sepanjang hari.
           </div>
         </aside>
 
-        {/* 📅 Column 2: Middle Activity Flow Column */}
-        <main className="flex-1 bg-slate-950 p-6 flex flex-col overflow-hidden">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        {/* 📅 Column 2: Middle Activity Flow Container (Bright and friendly layout with Blue/Green design) */}
+        <main className="flex-1 bg-gradient-to-b from-sky-50/20 via-white to-sky-50/20 p-5 flex flex-col overflow-hidden">
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
             <div>
-              <h2 className="text-xl font-bold font-title tracking-tight text-slate-100 flex items-center gap-2">
-                Alur Kegiatan Hari Ini
+              <h2 className="text-base sm:text-lg font-title font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-sky-500" /> Agenda Harian Sirkadian
               </h2>
-              <p className="text-xs text-slate-400">Kelola & optimalkan ritme jam kesibukan harian Anda</p>
+              <p className="text-xs text-slate-500 mt-0.5">Jadwal Anda hari ini yang terintegrasi dengan proteksi bio-istirahat otomatis.</p>
             </div>
             
             <button 
               onClick={handleClearAllSchedules}
-              className="text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3.5 py-2 rounded-xl border border-rose-500/20 transition-all font-medium flex items-center gap-1.5 focus:outline-none"
+              className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-3.5 py-2 rounded-xl border border-rose-100/60 transition duration-200 font-semibold flex items-center gap-1.5 focus:outline-none cursor-pointer shadow-3xs"
             >
-              <Trash2 className="w-3.5 h-3.5" /> Kosongkan Jadwal
+              <Trash2 className="w-3.5 h-3.5" /> Hapus Semua
             </button>
           </div>
 
+          {/* Interactive Visual energy curves mock block to make layout unique & luxurious */}
+          <div className="bg-gradient-to-r from-sky-500 to-emerald-400 p-4.5 rounded-2xl text-white mb-5 shadow-xs relative overflow-hidden">
+            <div className="absolute right-0 top-0 bottom-0 opacity-10 pointer-events-none w-1/2 bg-radial-gradient">
+              {/* Graphic curves inside background */}
+            </div>
+            
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 relative z-10">
+              <div className="space-y-1">
+                <span className="text-[9px] bg-white/20 text-white border border-white/20 px-2.5 py-0.5 rounded-full font-mono font-bold tracking-wider uppercase">
+                  GRAFIK PREDIKSI VITALITAS
+                </span>
+                <h4 className="font-title font-extrabold text-sm leading-snug">Kurva Energi Memuncak ⚡</h4>
+                <p className="text-[10px] text-sky-100 max-w-md">Kognisi otak Anda diestimasi mencapai level 94% pada jam 09:00 - 11:30 pagi setelah tidur bio yang nyenyak.</p>
+              </div>
+
+              {/* Curve statistics graph mockup overlay on the right */}
+              <div className="flex items-end gap-1.5 h-10 px-2">
+                <div className="w-2.5 bg-white/30 rounded-t h-4" title="Pagi"></div>
+                <div className="w-2.5 bg-white/70 rounded-t h-8" title="Pagi Menjelang Siang"></div>
+                <div className="w-2.5 bg-white/90 rounded-t h-10" title="Siang Terpuncak"></div>
+                <div className="w-2.5 bg-white/40 rounded-t h-5" title="Sore Jam Istirahat"></div>
+                <div className="w-2.5 bg-white/80 rounded-t h-7" title="Malam Jam Produktif Kreatif"></div>
+                <div className="w-2.5 bg-emerald-400 rounded-t h-2" title="Tidur Sirkadian"></div>
+              </div>
+            </div>
+          </div>
+
           {/* Dynamic Interactive Activity List */}
-          <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar" id="calendarContainer">
+          <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 custom-scrollbar" id="calendarContainer">
             {schedules.length === 0 ? (
-              <div className="h-44 border-2 border-dashed border-slate-900 rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-2.5">
-                <Coffee className="w-8 h-8 text-slate-700" />
+              <div className="h-48 border-2 border-dashed border-sky-100 rounded-2xl flex flex-col items-center justify-center text-center p-6 space-y-3 bg-white/50 backdrop-blur-xs">
+                <Coffee className="w-10 h-10 text-sky-300 animate-bounce" />
                 <div>
-                  <p className="text-xs font-semibold text-slate-400">Belum Ada Agenda Terjadwal</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Tambahkan kegiatan akademik atau profesional Anda di panel kanan.</p>
+                  <p className="text-xs font-bold text-slate-700">Agenda Sirkadian Belum Diisi</p>
+                  <p className="text-[10px] text-slate-500 mt-1 max-w-sm">Daftarkan kuliah mandiri, tugas eksternal pro, atau gunakan tombol template di panel kiri untuk demo cepat bertenaga!</p>
                 </div>
               </div>
             ) : (
@@ -683,35 +846,35 @@ export default function App() {
                   return (
                     <motion.div 
                       key={item.id}
-                      initial={{ opacity: 0, y: 15 }}
+                      initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
+                      exit={{ opacity: 0, scale: 0.96 }}
                       layout
-                      className="flex gap-4 items-stretch group"
+                      className="flex gap-3 sm:gap-4 items-stretch group"
                     >
-                      {/* Hours labels on the left */}
-                      <div className="w-20 text-xs font-mono text-slate-500 pt-3.5 text-right shrink-0">
+                      {/* Hours labels on the left side formatted cleanly */}
+                      <div className="w-20 text-xs font-mono font-black text-sky-600/80 pt-3 text-right shrink-0">
                         {item.start} - {item.end}
                       </div>
 
                       {/* Schedule details Card */}
-                      <div className={`flex-1 ${cfg.bg} border-l-4 ${cfg.border} rounded-xl p-4 border border-slate-900 flex justify-between items-center transition hover:border-slate-800`}>
-                        <div className="space-y-1.5">
+                      <div className={`flex-1 ${cfg.bg} border-l-4 ${cfg.border} rounded-2xl p-4 border border-slate-100/10 flex justify-between items-center transition duration-200 shadow-3xs hover:shadow-sm`}>
+                        <div className="space-y-1.5 flex-1 min-w-0 pr-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className={`text-xs md:text-sm font-bold ${cfg.text}`}>{item.title}</h3>
-                            <span className="text-[8px] font-mono font-bold bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                            <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">{item.title}</h3>
+                            <span className={`text-[8px] font-mono font-bold ${cfg.pillBg} px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0`}>
                               {cfg.icon} {cfg.label}
                             </span>
 
                             {item.reminderMinutes !== undefined && item.reminderMinutes !== -1 ? (
-                              <span className="text-[8px] font-mono font-bold bg-indigo-950/50 text-indigo-300 border border-indigo-900/50 px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1">
-                                <Bell className="w-2.5 h-2.5 text-indigo-400 animate-pulse" />
-                                {item.reminderMinutes === 0 ? "Pada Acara" : `${item.reminderMinutes} Menit Sebelum`}
+                              <span className="text-[8px] font-mono font-extrabold bg-sky-50 text-sky-800 border border-sky-200/50 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shrink-0">
+                                <Bell className="w-2.5 h-2.5 text-sky-600 animate-pulse" />
+                                {item.reminderMinutes === 0 ? "Tepat Waktu" : `${item.reminderMinutes} Menit Sebelum`}
                               </span>
                             ) : (
-                              <span className="text-[8px] font-mono text-slate-600 border border-slate-900/60 px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1">
+                              <span className="text-[8px] font-mono text-slate-400 bg-slate-100 border border-slate-200/40 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shrink-0">
                                 <BellOff className="w-2.5 h-2.5" />
-                                Tanpa Pengingat
+                                Alarm Mati
                               </span>
                             )}
                           </div>
@@ -719,9 +882,9 @@ export default function App() {
                         
                         <button 
                           onClick={() => handleDeleteSchedule(item.id)}
-                          className="opacity-100 lg:opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 hover:bg-slate-950 p-1 rounded transition"
+                          className="opacity-100 lg:opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 hover:bg-white p-2 rounded-xl border border-slate-100 transition cursor-pointer"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </motion.div>
@@ -730,94 +893,94 @@ export default function App() {
               </AnimatePresence>
             )}
 
-            {/* Permanent Biological Rest Protected Slot */}
-            <div className="flex gap-4 items-stretch">
-              <div className="w-20 text-xs font-mono text-slate-500 pt-3 text-right">22:00 - 05:00</div>
-              <div className={`flex-1 ${categoryConfigMap.biologis.bg} border-l-4 ${categoryConfigMap.biologis.border} border-dashed rounded-xl p-4 border border-slate-900`}>
-                <div className="flex items-center gap-2">
-                  <h3 className={`text-xs md:text-sm font-bold ${categoryConfigMap.biologis.text} flex items-center gap-1.5`}>
-                    <Moon className="w-3.5 h-3.5" /> Slot Tidur Esensial (Terproteksi Otomatis AI)
+            {/* Permanent Biological Rest Protected Slot (Styled Soft Emerald) */}
+            <div className="flex gap-3 sm:gap-4 items-stretch">
+              <div className="w-20 text-xs font-mono font-bold text-emerald-600 pt-3.5 text-right">22:00 - 05:00</div>
+              <div className="flex-1 bg-emerald-50/40 border-l-4 border-emerald-400 border-dashed rounded-2xl p-4.5 border border-emerald-100/50 shadow-3xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-xs md:text-sm font-extrabold text-emerald-900 flex items-center gap-1.5">
+                    <Moon className="w-3.5 h-3.5 text-emerald-500 animate-pulse" /> Fase Tidur Sirkadian Esensial (Kunci Bioritme)
                   </h3>
-                  <span className="text-[8px] font-mono font-bold bg-slate-900 border border-slate-850 px-2 py-0.5 rounded text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                    Aktif
+                  <span className="text-[8px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Proteksi AI Aktif
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                  Sirkadian memblokir aktivitas berat dan mematikan pengiriman notifikasi eksternal untuk mengamankan istirahat sel biologis optimal Anda.
+                <p className="text-[10px] text-emerald-950 mt-2 leading-relaxed font-normal">
+                  Sistem perlindungan menghentikan seluruh notifikasi tinggi kognitif guna memaksimalkan regulasi hormon melatonin, meremajakan stamina seluler tubuh demi produktivitas premium esok hari.
                 </p>
               </div>
             </div>
           </div>
         </main>
 
-        {/* 📅 Column 3: Smart Agenda Forms & Conflicts */}
-        <section className="w-full lg:w-[28%] bg-slate-900/30 p-6 border-l border-slate-950 lg:border-slate-900 flex flex-col justify-between overflow-y-auto">
-          <div className="space-y-6">
+        {/* 📅 Column 3: Smart Agenda Forms & Interactive Side panel */}
+        <section className="w-full lg:w-[28%] bg-white p-5 border-l border-sky-100/50 flex flex-col justify-between overflow-y-auto space-y-5">
+          <div className="space-y-4.5">
             
-            {/* Adding Agenda component */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-900">
-                <Sparkles className="text-indigo-400 w-4 h-4" />
-                <h3 className="font-title font-bold text-xs uppercase tracking-wider text-slate-300">
-                  Tambah Agenda Pintar
+            {/* Adding Agenda component (Elegant Light inputs) */}
+            <div className="space-y-3.5">
+              <div className="flex items-center gap-2 pb-2.5 border-b border-light-slate-100">
+                <Sparkles className="text-emerald-500 w-4.5 h-4.5 animate-pulse" />
+                <h3 className="font-title font-extrabold text-[11px] uppercase tracking-wider text-slate-800">
+                  Daftarkan Agenda & Pengingat
                 </h3>
               </div>
 
-              <form onSubmit={handleAddSchedule} className="space-y-3.5">
+              <form onSubmit={handleAddSchedule} className="space-y-3">
                 <div>
-                  <label className="block text-[10px] font-medium text-slate-450 mb-1 font-mono uppercase tracking-wider">Nama Kegiatan / Tugas</label>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-1 font-mono uppercase tracking-wider">📋 Nama Agenda / Acara</label>
                   <input 
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     type="text" 
-                    className="w-full text-xs bg-slate-950 border border-slate-900 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-700" 
-                    placeholder="Misal: Rapat Panitia Wisuda Kampus"
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white transition-all placeholder:text-slate-400 font-semibold" 
+                    placeholder="Contoh: Diskusi Kelompok Fisika atau Scrum MSIB"
                   />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[10px] font-medium text-slate-450 mb-1 font-mono uppercase tracking-wider">Jam Mulai</label>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1 font-mono uppercase tracking-wider">⏰ Jam Mulai</label>
                     <input 
                       value={formStart}
                       onChange={(e) => setFormStart(e.target.value)}
                       type="time" 
-                      className="w-full text-xs bg-slate-950 border border-slate-900 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white transition-all font-bold font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-medium text-slate-450 mb-1 font-mono uppercase tracking-wider">Jam Selesai</label>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1 font-mono uppercase tracking-wider">⌛ Jam Selesai</label>
                     <input 
                       value={formEnd}
                       onChange={(e) => setFormEnd(e.target.value)}
                       type="time" 
-                      className="w-full text-xs bg-slate-950 border border-slate-900 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white transition-all font-bold font-mono"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-medium text-slate-450 mb-1 font-mono uppercase tracking-wider">Kategori Pilar Kesibukan</label>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-1 font-mono uppercase tracking-wider">🗂️ Kategori Agenda</label>
                   <select 
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value as any)}
-                    className="w-full text-xs bg-slate-950 border border-slate-900 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white transition-all font-semibold cursor-pointer"
                   >
-                    <option value="akademik">🟦 Akademik (Kuliah / Ujian / Tugas)</option>
-                    <option value="eksternal">🟪 Eksternal Pro (Magang / Bootcamp / Kerja)</option>
-                    <option value="sosial">🟧 Sosial (Kepanitiaan / Organisasi / Hangout)</option>
+                    <option value="akademik">🟦 Akademik (Kuliah & Tugas)</option>
+                    <option value="eksternal">🟪 MSIB / Eksternal Pro</option>
+                    <option value="sosial">🟧 Sosial & Waktu Keluarga</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-medium text-slate-450 mb-1 font-mono uppercase tracking-wider">🔔 Pengingat Acara</label>
+                  <label className="block text-[10px] font-bold text-slate-600 mb-1 font-mono uppercase tracking-wider">🔔 Konfigurasi Suara Alarm</label>
                   <select 
                     value={formReminderMinutes}
                     onChange={(e) => setFormReminderMinutes(Number(e.target.value))}
-                    className="w-full text-xs bg-slate-950 border border-slate-900 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:border-sky-500 focus:bg-white transition-all font-bold cursor-pointer"
                   >
-                    <option value="-1">🔕 Tanpa Pengingat</option>
-                    <option value="0">⏰ Tepat Saat Acara Dimulai</option>
+                    <option value="-1">🔕 Alarm Dinonaktifkan</option>
+                    <option value="0">⏰ Tepat Waktu Saat Agenda Mulai</option>
                     <option value="5">⏳ 5 Menit Sebelum Acara</option>
                     <option value="15">⏳ 15 Menit Sebelum Acara</option>
                     <option value="30">⏳ 30 Menit Sebelum Acara</option>
@@ -827,74 +990,70 @@ export default function App() {
 
                 <button 
                   type="submit"
-                  className="w-full bg-gradient-to-r from-indigo-700 to-indigo-600 hover:from-indigo-600 hover:to-indigo-500 font-semibold text-xs text-white py-3 rounded-xl transition shadow-lg shadow-indigo-950/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full bg-gradient-to-r from-sky-500 to-emerald-400 hover:from-sky-600 hover:to-emerald-500 font-title font-bold text-xs text-white py-3.5 rounded-xl transition duration-200 shadow-md shadow-sky-400/20 flex items-center justify-center gap-1.5 cursor-pointer leading-none"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Masukkan ke Jadwal
+                  <Plus className="w-4 h-4 text-white" /> Daftarkan Agenda Baru
                 </button>
               </form>
             </div>
 
-            {/* Smart Conflict box (glowing animation if conflict occurs) */}
+            {/* Smart Conflict box (Glow alert in Light Mode - Styled Bright Amber) */}
             <AnimatePresence>
               {conflictText && (
                 <motion.div 
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  initial={{ opacity: 0, scale: 0.95, y: -6 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  className="bg-amber-950/30 border border-amber-500/20 rounded-xl p-4 space-y-3 shadow-lg"
+                  exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                  className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2.5 shadow-xs border-l-4 border-l-amber-500"
                   id="aiAlertBox"
                 >
-                  <div className="text-amber-400 text-xs font-bold font-mono tracking-wider flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-500 animate-bounce" /> RESOLUSI KONFLIK JADWAL (AI)
+                  <div className="text-amber-800 text-xs font-bold font-mono tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 animate-pulse" /> TERATURKAN ULANG AI
                   </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-sans" id="aiAlertText">
+                  <p className="text-[11px] text-slate-850 leading-relaxed font-semibold" id="aiAlertText">
                     {conflictText}
                   </p>
                   
                   <button 
                     onClick={handleResolveConflict}
-                    className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold py-2 rounded-lg transition-all uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer shadow shadow-amber-900"
+                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-[10px] font-title font-black py-2.5 rounded-xl transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-amber-200"
                   >
-                    {isLoaderActive ? (
-                      <span className="w-3 h-3 rounded-full border-2 border-slate-950 border-t-transparent animate-spin"></span>
-                    ) : (
-                      "Izinkan AI Atur Otomatis ✨"
-                    )}
+                    🚀 Jalankan Optimalisasi AI Sirkadian
                   </button>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* 📋 Section Task Breakdown harian */}
-          <div className="border-t border-slate-900 pt-5 mt-6 space-y-4">
+          {/* 📋 Section Task Checklist (Interactive Elements) */}
+          <div className="border-t border-slate-100 pt-4 space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest block font-mono">
-                📋 Task Breakdown Hari Ini
+              <span className="text-[10px] font-bold text-slate-505 uppercase tracking-widest block font-mono">
+                📋 Serpihan Tugas Sirkadian
               </span>
-              <span className="text-[9px] bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-800">
+              <span className="text-[9px] bg-emerald-55 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-100 font-mono">
                 {todos.filter(t => t.completed).length}/{todos.length} Selesai
               </span>
             </div>
 
-            <div className="space-y-2 text-xs" id="todoContainer">
+            <div className="space-y-1.5 text-xs" id="todoContainer">
               {todos.length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic block">Tidak ada pecahan tugas saat ini. Tambah schedule untuk memicu.</p>
+                <p className="text-[10px] text-slate-400 italic block">Tidak ada pecahan tugas mandiri.</p>
               ) : (
                 todos.map(todo => (
                   <div 
                     key={todo.id}
                     onClick={() => handleToggleTodo(todo.id)}
-                    className="flex items-center gap-2.5 bg-slate-950/60 hover:bg-slate-900/60 p-2.5 rounded-xl border border-slate-900/40 transition-colors cursor-pointer"
+                    className="flex items-center gap-2.5 bg-slate-50 hover:bg-sky-50/50 p-2.5 rounded-xl border border-slate-100 transition-colors cursor-pointer group"
                   >
-                    <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-all ${
+                    <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
                       todo.completed 
-                        ? "bg-indigo-600 border-indigo-500" 
-                        : "border-slate-800 hover:border-slate-750"
+                        ? "bg-emerald-500 border-emerald-400 text-white" 
+                        : "border-slate-350 hover:border-slate-450 text-transparent"
                     }`}>
-                      {todo.completed && <Check className="w-2.5 h-2.5 text-white" />}
+                      <Check className="w-3 h-3 text-white" />
                     </div>
-                    <span className={`text-[11px] leading-tight select-none ${todo.completed ? "line-through text-slate-500" : "text-slate-300"}`}>
+                    <span className={`text-[11px] leading-snug select-none font-medium flex-1 ${todo.completed ? "line-through text-slate-400" : "text-slate-800 font-semibold"}`}>
                       {todo.task}
                     </span>
                   </div>
@@ -902,8 +1061,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Quick manual todo entry */}
-            <div className="pt-2">
+            <div className="pt-1.5">
               <input 
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -912,17 +1070,17 @@ export default function App() {
                   }
                 }}
                 type="text" 
-                placeholder="+ Tambah tugas mandiri (Tekan Enter)"
-                className="w-full text-[10px] bg-transparent border-b border-slate-900/60 pb-1 text-slate-400 focus:outline-none focus:border-indigo-600 focus:text-slate-200 transition-colors"
+                placeholder="+ enter tugas mandiri baru..."
+                className="w-full text-xs bg-slate-50 hover:bg-slate-100/50 focus:bg-white border-b border-slate-200 focus:border-sky-500 pb-1 px-1.5 py-1 text-slate-700 focus:outline-none transition-colors font-medium"
               />
             </div>
           </div>
 
-          {/* 🔔 Riwayat Alarm Terpemicu History */}
-          <div className="border-t border-slate-900 pt-5 mt-6 space-y-3.5">
+          {/* 🔔 Alarm logs history (clean layout) */}
+          <div className="border-t border-slate-100 pt-4 space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest block font-mono flex items-center gap-1.5">
-                <History className="w-3.5 h-3.5 text-indigo-400" /> Riwayat Alarm Terpemicu
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-mono flex items-center gap-1">
+                <History className="w-3.5 h-3.5 text-sky-500" /> Riwayat Alert Terpemicu
               </span>
               {notificationLogs.length > 0 && (
                 <button 
@@ -930,33 +1088,33 @@ export default function App() {
                     setNotificationLogs([]);
                     localStorage.removeItem("snooze_notification_logs");
                   }}
-                  className="text-[9px] text-rose-400/80 hover:text-rose-400 font-mono cursor-pointer"
+                  className="text-[9px] text-rose-500 hover:text-rose-600 font-mono font-bold cursor-pointer"
                 >
                   Bersihkan
                 </button>
               )}
             </div>
 
-            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
               {notificationLogs.length === 0 ? (
-                <p className="text-[10px] text-slate-600 block leading-normal italic">Belum ada alarm yang berbunyi hari ini.</p>
+                <p className="text-[10px] text-slate-400 block italic leading-normal text-center pt-2">Belum ada alarm berdering dalam sesi ini.</p>
               ) : (
                 notificationLogs.map(log => {
-                  let badgeColor = "border-blue-900 text-blue-400";
-                  if (log.category === "eksternal") badgeColor = "border-purple-900 text-purple-400";
-                  if (log.category === "sosial") badgeColor = "border-orange-900 text-orange-400";
+                  let badgeColor = "border-sky-200 text-sky-700 bg-sky-50/70";
+                  if (log.category === "eksternal") badgeColor = "border-emerald-200 text-emerald-700 bg-emerald-50/70";
+                  if (log.category === "sosial") badgeColor = "border-amber-250 text-amber-700 bg-amber-50/60";
                   return (
                     <div 
                       key={log.id}
-                      className="bg-slate-950/40 border border-slate-900/60 p-2 rounded-xl flex flex-col gap-1 transition"
+                      className="bg-slate-50 border border-slate-100 p-2 rounded-xl flex flex-col gap-1 transition"
                     >
                       <div className="flex justify-between items-center">
                         <span className="text-[8px] font-mono font-bold text-slate-500">{log.time}</span>
-                        <span className={`text-[8px] font-mono font-semibold px-1 rounded border ${badgeColor} capitalize`}>
+                        <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-full border ${badgeColor}`}>
                           {log.category}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-350 leading-snug font-sans">
+                      <p className="text-[10px] text-slate-700 leading-snug font-semibold">
                         {log.text}
                       </p>
                     </div>
@@ -970,41 +1128,41 @@ export default function App() {
 
       </div>
 
-      {/* 🚨 Dynamic Floating Notification Popup Modal */}
+      {/* 🚨 Dynamic Flying Alert Modal Reminder Dialog (Fresh & Friendly Light style) */}
       <AnimatePresence>
         {activeAlert && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.93, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-slate-900 border-2 border-indigo-500 rounded-3xl p-6 max-w-md w-full shadow-2xl shadow-indigo-500/10 space-y-5 relative overflow-hidden"
+              exit={{ opacity: 0, scale: 0.93, y: 15 }}
+              className="bg-white border border-emerald-100 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4.5 relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-purple-500"></div>
+              <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-sky-400 to-emerald-400"></div>
               
               <div className="flex items-start gap-4">
-                <div className="bg-gradient-to-tr from-indigo-600 to-indigo-700 p-3.5 rounded-2xl text-white shadow-lg animate-bounce">
-                  <BellRing className="w-5 h-5 text-indigo-100" />
+                <div className="bg-gradient-to-tr from-sky-400 to-emerald-400 p-3.5 rounded-2xl text-white shadow-md animate-bounce">
+                  <BellRing className="w-5 h-5 text-white" />
                 </div>
                 <div className="space-y-1 flex-1">
-                  <span className="text-[10px] bg-indigo-950/40 text-indigo-400 border border-indigo-900/40 px-2 py-0.5 rounded-full font-mono font-bold uppercase tracking-widest">
-                    SnoozePlan Alarm
+                  <span className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-100 px-2.5 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider">
+                    Alarm Pengingat Sirkadian
                   </span>
-                  <h4 className="font-title font-bold text-sm md:text-base text-white mt-1 leading-tight">
+                  <h4 className="font-title font-extrabold text-slate-900 mt-1.5 text-base leading-tight">
                     {activeAlert.title}
                   </h4>
-                  <p className="text-xs text-slate-400">
-                    Acara dimulai pukul: <strong className="text-slate-200">{activeAlert.start}</strong>
+                  <p className="text-xs text-slate-500">
+                    Acara dimulai pukul: <span className="text-sky-500 font-extrabold font-mono text-xs">{activeAlert.start}</span>
                   </p>
                 </div>
               </div>
 
-              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-950 flex items-center justify-between text-xs">
-                <span className="text-slate-400">Pilar Kegiatan:</span>
-                <span className="font-medium text-indigo-400 capitalize">{activeAlert.category}</span>
+              <div className="bg-sky-50/50 p-3.5 rounded-2xl border border-sky-100/50 flex items-center justify-between text-xs">
+                <span className="text-slate-600 font-semibold">Pilar Kesehatan:</span>
+                <span className="font-extrabold text-sky-600 capitalize">{activeAlert.category}</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 {/* Snooze 5 mins button */}
                 <button 
                   onClick={() => {
@@ -1016,17 +1174,17 @@ export default function App() {
                     }));
                     setActiveAlert(null);
                   }}
-                  className="bg-slate-950 hover:bg-slate-850 text-slate-300 text-xs font-semibold py-3 px-4 rounded-xl border border-slate-800 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl border border-slate-200 transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Clock className="w-3.5 h-3.5" /> Tunda 5 Mnt
+                  <Clock className="w-4 h-4 text-slate-500" /> Tunda 5 Mnt
                 </button>
                 
                 {/* Dismiss button */}
                 <button 
                   onClick={() => setActiveAlert(null)}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-3 px-4 rounded-xl transition shadow shadow-indigo-600/30 flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="bg-gradient-to-r from-sky-500 to-emerald-400 hover:from-sky-600 hover:to-emerald-500 text-white text-xs font-extrabold py-3 px-4 rounded-xl transition shadow-sm shadow-sky-400/20 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Mengerti
+                  <CheckCircle2 className="w-4 h-4 text-white" /> Selesai / Mengerti
                 </button>
               </div>
             </motion.div>
