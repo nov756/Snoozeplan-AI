@@ -159,7 +159,11 @@ app.post("/api/optimize", async (req: Request, res: Response): Promise<void> => 
     if (!ai) {
       // Local rule-based fallback mode
       const result = runLocalOptimization(schedules, mode);
-      res.json(result);
+      res.json({
+        ...result,
+        isLocalFallback: true,
+        fallbackReason: "no-key"
+      });
       return;
     }
 
@@ -224,18 +228,34 @@ Format respons harus berupa JSON VALID murni, persis sesuai skema ini tanpa mark
         ...parsed
       });
     } catch (parseError) {
-      console.error("Gemini output parsing failed. Output was:", text);
+      console.warn("Gemini output parsing failed (logged as warning). Output was:", text);
       // Fallback local computation if AI returned invalid JSON
       const result = runLocalOptimization(schedules, mode);
-      res.json(result);
+      res.json({
+        ...result,
+        isLocalFallback: true,
+        fallbackReason: "parse-failure"
+      });
     }
 
   } catch (error: any) {
-    console.error("Error in /api/optimize:", error);
+    const errorStr = String(error?.message || error);
+    const isQuotaError = errorStr.includes("quota") || errorStr.includes("429") || errorStr.includes("limit") || error?.status === "RESOURCE_EXHAUSTED";
+    
+    if (isQuotaError) {
+      console.warn("Gemini API Quota atau Rate Limit terlampaui. Mengalihkan proses ke mesin lokal SnoozePlan secara otomatis.");
+    } else {
+      console.warn("Proses Optimasi Gemini terganggu:", errorStr);
+    }
+    
     // Safe fallback so user experience is never interrupted
     const { schedules, mode } = req.body;
     const result = runLocalOptimization(schedules || [], mode || "analyze");
-    res.json(result);
+    res.json({
+      ...result,
+      isLocalFallback: true,
+      fallbackReason: isQuotaError ? "quota-exceeded" : "api-error"
+    });
   }
 });
 

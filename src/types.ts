@@ -22,4 +22,6 @@ export interface OptimizationResponse {
   sleepDurationHours: number;
   conflictText: string | null;
   coachingTip: string;
+  isLocalFallback?: boolean;
+  fallbackReason?: string;
 }

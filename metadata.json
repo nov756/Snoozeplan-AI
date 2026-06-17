@@ -1,6 +1,6 @@
 {
   "name": "SnoozePlan AI",
   "description": "Optimalkan jadwal harian dan proteksi kesehatan sirkadian biologis dengan kecerdasan buatan.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
