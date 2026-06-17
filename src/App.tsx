@@ -239,6 +239,7 @@ export default function App() {
   });
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // UI forms
   const [formTitle, setFormTitle] = useState("");
@@ -1258,9 +1259,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => {
-              if (confirm("Apakah Anda yakin ingin keluar dari SnoozePlan?")) {
-                setIsLoggedIn(false);
-              }
+              setShowLogoutConfirm(true);
             }}
             id="logout-header-btn"
             className="bg-rose-50 hover:bg-rose-100 text-rose-600 p-2 rounded-xl border border-rose-100 transition duration-150 flex items-center gap-1 cursor-pointer font-bold text-[10px] shadow-3xs"
@@ -1346,6 +1345,17 @@ export default function App() {
                       </div>
                       <span className="text-xl">💤</span>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowLogoutConfirm(true);
+                      }}
+                      className="w-full mt-1 py-1.5 px-3 bg-red-50 hover:bg-red-100/80 text-red-600 border border-red-100 hover:border-red-200/80 transition-all rounded-xl text-[10px] font-extrabold flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Keluar dari Aplikasi (Logout)
+                    </button>
                   </motion.div>
                 ) : (
                   <motion.form
@@ -2487,6 +2497,65 @@ export default function App() {
                 </div>
               </motion.div>
             )}
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modern, Iframe-safe Custom Logout Confirmation Dialog */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 text-slate-800" id="logout-confirm-overlay">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white border border-slate-150 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-red-400 to-rose-500"></div>
+              
+              <div className="flex items-start gap-3.5">
+                <div className="bg-gradient-to-tr from-rose-500 to-red-500 p-3 rounded-2xl text-white shadow-md shadow-rose-200 shrink-0">
+                  <LogOut className="w-5 h-5 text-white" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-title font-extrabold text-slate-900 text-base leading-tight">
+                    Keluar dari Aplikasi?
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Setiap status proteksi biologis Anda akan ditutup sementara. Semua konfigurasi data pribadi Anda tetap disimpan dengan aman di browser lokal.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-sky-50/50 p-3 rounded-xl border border-sky-100/50 text-[10px] text-sky-700 font-mono font-bold leading-normal">
+                👋 Sampai jumpa lagi, {userProfile.name}! Jaga ritme biologis harianmu tetap seimbang.
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                {/* Cancel button */}
+                <button 
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  Batal
+                </button>
+                
+                {/* Logout confirm button */}
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setIsLoggedIn(false);
+                    setShowLogoutConfirm(false);
+                  }}
+                  id="confirm-logout-btn"
+                  className="bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-xs font-extrabold py-2.5 px-4 rounded-xl transition shadow-sm shadow-rose-400/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  Ya, Keluar Akun
+                </button>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
