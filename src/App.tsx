@@ -43,7 +43,11 @@ import {
   Mic,
   MicOff,
   ChevronDown,
-  Play
+  Play,
+  User,
+  LogOut,
+  LogIn,
+  Lock
 } from "lucide-react";
 import { ScheduleItem, TodoItem, OptimizationResponse } from "./types";
 import WeeklyInsights from "./components/WeeklyInsights";
@@ -182,6 +186,47 @@ function parseIndonesianSpeechToAgenda(text: string) {
 }
 
 export default function App() {
+  // User Account Authentication and Profiling ("Data Diri")
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    return localStorage.getItem("snooze_user_logged_in") === "true";
+  });
+
+  const [userProfile, setUserProfile] = useState<{
+    name: string;
+    email: string;
+    age: string;
+    gender: 'Laki-laki' | 'Perempuan';
+    chronotype: 'Early Bird' | 'Night Owl' | 'Balanced';
+    sleepTarget: number;
+  }>(() => {
+    const saved = localStorage.getItem("snooze_user_profile");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // fallback
+      }
+    }
+    return {
+      name: "Nadya",
+      email: "nadin8258@gmail.com",
+      age: "21",
+      gender: "Perempuan",
+      chronotype: "Early Bird",
+      sleepTarget: 8
+    };
+  });
+
+  // Sync user profile changes to local storage
+  useEffect(() => {
+    localStorage.setItem("snooze_user_profile", JSON.stringify(userProfile));
+  }, [userProfile]);
+
+  // Sync login status
+  useEffect(() => {
+    localStorage.setItem("snooze_user_logged_in", isLoggedIn ? "true" : "false");
+  }, [isLoggedIn]);
+
   // Persistence state
   const [schedules, setSchedules] = useState<ScheduleItem[]>(() => {
     const saved = localStorage.getItem("snooze_schedules");
@@ -192,6 +237,8 @@ export default function App() {
     const saved = localStorage.getItem("snooze_todos");
     return saved ? JSON.parse(saved) : defaultTodos;
   });
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   // UI forms
   const [formTitle, setFormTitle] = useState("");
@@ -994,6 +1041,175 @@ export default function App() {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (energyScore / 100) * circumference;
 
+  if (!isLoggedIn) {
+    return (
+      <div className="bg-gradient-to-tr from-sky-50 via-slate-50 to-emerald-50 text-slate-800 min-h-screen flex items-center justify-center p-4 sm:p-6 select-none overflow-x-hidden antialiased relative" id="login-gate-page">
+        <div className="absolute inset-0 bg-[radial-gradient(#03a9f4_1px,transparent_1px)] [background-size:16px_16px] opacity-15"></div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative max-w-md w-full bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-slate-150 shadow-xl space-y-6 z-10"
+        >
+          {/* Logo & Headline */}
+          <div className="text-center space-y-2">
+            <div className="inline-flex bg-gradient-to-r from-sky-500 to-emerald-400 p-3.5 rounded-2xl text-white shadow-md shadow-sky-400/35 mb-2 mx-auto">
+              <Zap className="w-8 h-8 animate-pulse text-white" />
+            </div>
+            <h1 className="text-2xl font-title font-extrabold text-slate-900 tracking-tight">
+              SnoozePlan<span className="text-gradient bg-gradient-to-r from-sky-500 to-emerald-500 bg-clip-text text-transparent font-black ml-1">AI Pro</span>
+            </h1>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+              Asisten Sirkadian Otomatis & Proteksi Istirahat Biologis untuk Mahasiswa & Profesional MSIB
+            </p>
+          </div>
+
+          {/* Form */}
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!userProfile.name.trim()) {
+                alert("Mohon masukkan nama Anda!");
+                return;
+              }
+              setIsLoggedIn(true);
+              // Play a cheerful chime on login
+              setTimeout(() => {
+                playAlertSound("circadian");
+              }, 150);
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div className="bg-sky-50/40 p-4 rounded-2xl border border-sky-100/30 space-y-3">
+              <h2 className="text-[10px] font-bold text-sky-700 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                <User className="w-4 h-4 text-sky-500" /> Registrasi Data Diri (Profil Sirkadian)
+              </h2>
+              
+              <div className="space-y-3">
+                {/* Name */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 font-mono uppercase">Nama Lengkap</label>
+                  <input 
+                    type="text"
+                    required
+                    value={userProfile.name}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Nama panggilan Anda..."
+                    className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-3xs"
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 font-mono uppercase">Alamat Email</label>
+                  <input 
+                    type="email"
+                    required
+                    value={userProfile.email}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="nama@domain.com"
+                    className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-3xs"
+                  />
+                </div>
+
+                {/* Age & Gender in row */}
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1 font-mono uppercase">Usia (Tahun)</label>
+                    <input 
+                      type="number"
+                      required
+                      min="1"
+                      max="120"
+                      value={userProfile.age}
+                      onChange={(e) => setUserProfile(prev => ({ ...prev, age: e.target.value }))}
+                      className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-3xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1 font-mono uppercase">Jenis Kelamin</label>
+                    <select 
+                      value={userProfile.gender}
+                      onChange={(e) => setUserProfile(prev => ({ ...prev, gender: e.target.value as any }))}
+                      className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-3xs cursor-pointer"
+                    >
+                      <option value="Perempuan">Perempuan</option>
+                      <option value="Laki-laki">Laki-laki</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Chronotype selection */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 font-mono uppercase">Biotipe Kronotipe Sirkadian</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["Early Bird", "Night Owl", "Balanced"] as const).map((type) => {
+                      const desc = type === "Early Bird" ? "Pagi" : type === "Night Owl" ? "Malam" : "Seimbang";
+                      const emoji = type === "Early Bird" ? "🐦" : type === "Night Owl" ? "🦉" : "🦊";
+                      const isSelected = userProfile.chronotype === type;
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setUserProfile(prev => ({ ...prev, chronotype: type }))}
+                          className={`p-2 rounded-xl text-center border text-[10px] font-bold transition-all cursor-pointer ${
+                            isSelected 
+                              ? "bg-gradient-to-r from-sky-500 to-emerald-400 text-white border-transparent shadow-xs"
+                              : "bg-white text-slate-600 border-slate-150 hover:border-sky-300"
+                          }`}
+                        >
+                          <div className="text-sm mb-0.5">{emoji}</div>
+                          <div className="truncate">{desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Target Jam Tidur */}
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[10px] font-bold text-slate-500 font-mono uppercase">Target Tidur Harian</label>
+                    <span className="text-[10px] font-extrabold text-sky-600 font-mono bg-sky-50 px-1.5 py-0.5 rounded-md">{userProfile.sleepTarget} Jam</span>
+                  </div>
+                  <input 
+                    type="range"
+                    min="5"
+                    max="10"
+                    step="0.5"
+                    value={userProfile.sleepTarget}
+                    onChange={(e) => setUserProfile(prev => ({ ...prev, sleepTarget: parseFloat(e.target.value) }))}
+                    className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500 focus:outline-none"
+                  />
+                  <div className="flex justify-between text-[8px] text-slate-400 font-mono mt-0.5">
+                    <span>5 Jam (Minimal)</span>
+                    <span>10 Jam (Ideal)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 px-4 bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-600 hover:to-emerald-600 text-white font-title font-extrabold text-xs sm:text-sm rounded-2xl shadow-md shadow-sky-500/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <LogIn className="w-4 h-4 text-white" />
+              Masuk &amp; Mulai Hari Baru 🚀
+            </button>
+          </form>
+
+          {/* Footer of login */}
+          <div className="pt-2 text-center border-t border-slate-150">
+            <p className="text-[8px] text-slate-400 uppercase tracking-widest font-mono flex items-center justify-center gap-1">
+              <Lock className="w-2.5 h-2.5 text-emerald-500" /> Data Tersimpan Aman di Browser Lokal
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gradient-to-tr from-sky-50/50 via-white to-emerald-50/30 text-slate-800 min-h-screen flex flex-col font-sans select-none overflow-x-hidden antialiased selection:bg-sky-200 selection:text-sky-900" id="snoozeplan-app-root">
       
@@ -1015,7 +1231,7 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="text-[11px] text-slate-700 font-bold flex items-center gap-1.5 bg-gradient-to-r from-sky-50 to-emerald-50/50 px-3 py-1.5 rounded-xl border border-sky-100/40 font-mono">
+          <div className="text-[11px] text-slate-700 font-bold flex items-center gap-1.5 bg-gradient-to-r from-sky-50 to-emerald-50/50 px-2.5 py-1 rounded-xl border border-sky-100/40 font-mono">
             <Clock className="w-3.5 h-3.5 text-sky-500 animate-spin-slow" /> {currentTimeStr || "Mengambil Waktu..."}
           </div>
           
@@ -1026,6 +1242,33 @@ export default function App() {
             </span>
             Sirkadian Terlindungi
           </span>
+
+          <div className="flex items-center gap-2 border border-slate-200/60 bg-slate-50/50 p-1 rounded-xl pr-2.5 shadow-3xs">
+            <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-sky-400 to-emerald-400 flex items-center justify-center text-white text-[10px] font-black select-none pointer-events-none shadow-2xs">
+              {userProfile.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="max-w-[80px] sm:max-w-[120px] truncate leading-tight">
+              <div className="text-[10px] font-extrabold text-slate-900 truncate">Halo, {userProfile.name}!</div>
+              <div className="text-[8px] font-extrabold text-slate-500 uppercase tracking-widest font-mono">
+                {userProfile.chronotype === "Early Bird" ? "🐦 Pagi" : userProfile.chronotype === "Night Owl" ? "🦉 Malam" : "🦊 Seimbang"}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("Apakah Anda yakin ingin keluar dari SnoozePlan?")) {
+                setIsLoggedIn(false);
+              }
+            }}
+            id="logout-header-btn"
+            className="bg-rose-50 hover:bg-rose-100 text-rose-600 p-2 rounded-xl border border-rose-100 transition duration-150 flex items-center gap-1 cursor-pointer font-bold text-[10px] shadow-3xs"
+            title="Keluar Akun"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Keluar</span>
+          </button>
         </div>
       </header>
 
@@ -1045,6 +1288,179 @@ export default function App() {
                 <h1 className="font-title font-bold text-sm tracking-tight text-slate-950 leading-tight">Biologi Sirkadian</h1>
                 <span className="text-[9px] text-emerald-600 font-extrabold uppercase tracking-wider block">Kesehatan & Energi Instan</span>
               </div>
+            </div>
+
+            {/* Interactive Profil & Data Diri Saya Widget (Onboarding / Account Customizer) */}
+            <div className="bg-white border border-slate-150/60 rounded-2xl p-4.5 space-y-3.5 shadow-3xs" id="personal-profile-widget">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-widest font-mono flex items-center gap-1.5 leading-none">
+                  <User className="w-4 h-4 text-sky-500 shrink-0" /> Profil &amp; Data Diri
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingProfile(!isEditingProfile)}
+                  className={`text-[9px] font-bold px-2 py-1 rounded-lg border transition ${
+                    isEditingProfile
+                      ? "bg-slate-100 text-slate-600 border-slate-200"
+                      : "bg-sky-50 text-sky-700 border-sky-100 hover:bg-sky-100"
+                  }`}
+                >
+                  {isEditingProfile ? "Batal" : "Ubah Data ⚙️"}
+                </button>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {!isEditingProfile ? (
+                  <motion.div
+                    key="profile-read-only"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3"
+                  >
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="block text-slate-400 font-mono text-[8px] uppercase tracking-wider mb-0.5">Nama</span>
+                        <span className="font-extrabold text-slate-800 truncate block">{userProfile.name}</span>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="block text-slate-400 font-mono text-[8px] uppercase tracking-wider mb-0.5">Surel / Email</span>
+                        <span className="font-extrabold text-slate-800 truncate block" title={userProfile.email}>{userProfile.email}</span>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="block text-slate-400 font-mono text-[8px] uppercase tracking-wider mb-0.5">Usia / Gender</span>
+                        <span className="font-extrabold text-slate-800 block">{userProfile.age} Thn | {userProfile.gender === "Laki-laki" ? "Pria" : "Wanita"}</span>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                        <span className="block text-slate-400 font-mono text-[8px] uppercase tracking-wider mb-0.5">Bioritme / Kronotipe</span>
+                        <span className="font-extrabold text-slate-800 block">
+                          {userProfile.chronotype === "Early Bird" ? "🐦 Pagi" : userProfile.chronotype === "Night Owl" ? "🦉 Malam" : "🦊 Seimbang"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50 flex items-center justify-between">
+                      <div>
+                        <span className="block text-[8px] font-bold text-emerald-700 font-mono uppercase tracking-wider">Target Tidur Sirkadian</span>
+                        <span className="text-[11px] font-black text-emerald-800">{userProfile.sleepTarget} Jam / Hari</span>
+                      </div>
+                      <span className="text-xl">💤</span>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.form
+                    key="profile-form-edit"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!userProfile.name.trim()) {
+                        alert("Mohon masukkan nama Anda!");
+                        return;
+                      }
+                      setIsEditingProfile(false);
+                      playAlertSound("circadian");
+                    }}
+                    className="space-y-3"
+                  >
+                    <div>
+                      <label className="block text-[8px] font-bold text-slate-500 mb-1 font-mono uppercase">Nama Lengkap</label>
+                      <input 
+                        type="text"
+                        required
+                        value={userProfile.name}
+                        onChange={(e) => setUserProfile(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 focus:outline-none focus:border-sky-500 shadow-3xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[8px] font-bold text-slate-500 mb-1 font-mono uppercase">Surel / Email</label>
+                      <input 
+                        type="email"
+                        required
+                        value={userProfile.email}
+                        onChange={(e) => setUserProfile(prev => ({ ...prev, email: e.target.value }))}
+                        className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 focus:outline-none focus:border-sky-500 shadow-3xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[8px] font-bold text-slate-500 mb-1 font-mono uppercase">Usia</label>
+                        <input 
+                          type="number"
+                          required
+                          min="1"
+                          max="120"
+                          value={userProfile.age}
+                          onChange={(e) => setUserProfile(prev => ({ ...prev, age: e.target.value }))}
+                          className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[8px] font-bold text-slate-500 mb-1 font-mono uppercase">Gender</label>
+                        <select 
+                          value={userProfile.gender}
+                          onChange={(e) => setUserProfile(prev => ({ ...prev, gender: e.target.value as any }))}
+                          className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-800 cursor-pointer"
+                        >
+                          <option value="Perempuan">Perempuan</option>
+                          <option value="Laki-laki">Laki-laki</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[8px] font-bold text-slate-500 mb-1 font-mono uppercase">Kronotipe Sirkadian</label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {(["Early Bird", "Night Owl", "Balanced"] as const).map((type) => {
+                          const desc = type === "Early Bird" ? "Pagi" : type === "Night Owl" ? "Malam" : "Normal";
+                          const emoji = type === "Early Bird" ? "🐦" : type === "Night Owl" ? "🦉" : "🦊";
+                          const isSelected = userProfile.chronotype === type;
+                          return (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setUserProfile(prev => ({ ...prev, chronotype: type }))}
+                              className={`py-1 px-1.5 rounded-xl text-center border text-[9px] font-bold transition cursor-pointer truncate ${
+                                isSelected 
+                                  ? "bg-sky-500 text-white border-transparent"
+                                  : "bg-slate-50 text-slate-600 border-slate-150 hover:border-sky-200"
+                              }`}
+                            >
+                              <span>{emoji} {desc}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <label className="block text-[8px] font-bold text-slate-500 font-mono uppercase">Tidur: {userProfile.sleepTarget} Jam</label>
+                      </div>
+                      <input 
+                        type="range"
+                        min="5"
+                        max="10"
+                        step="0.5"
+                        value={userProfile.sleepTarget}
+                        onChange={(e) => setUserProfile(prev => ({ ...prev, sleepTarget: parseFloat(e.target.value) }))}
+                        className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-2 bg-gradient-to-r from-sky-500 to-emerald-400 hover:from-sky-600 hover:to-emerald-500 text-white text-[10px] font-black rounded-xl transition shadow-3xs active:scale-95 cursor-pointer text-center block"
+                    >
+                      💾 Simpan Data Diri
+                    </button>
+                  </motion.form>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Template Presets Container: Makes visual extremely active & allows fast seeding! */}
